@@ -1,6 +1,14 @@
 package refstore
 
 type MainStore struct {
+	spath string
+}
+
+func NewMainStore(spath string) *MainStore {
+	ms := &MainStore{
+		spath: spath,
+	}
+	return ms
 }
 
 func (ms *MainStore) AddEntry(e Entry, id Id) error {
