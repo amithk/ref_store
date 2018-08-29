@@ -1,22 +1,12 @@
 package refstore
 
-import "errors"
 import "fmt"
 import "path/filepath"
 import "unsafe"
 
-type StoreMap map[Id]*StoreMapEntry
-
-type BackStore struct {
-	spath    string
-	storeMap StoreMap
-}
-
-type StoreMapEntry struct {
-	entry   Entry
-	deleted bool
-}
-
+// TODO: Restructure list entry. Let linked list store the next pointer.
+// This ensures all the unsafe pointer logic to be moved to linked list
+// implementation. Note: this may lead to more allocations.
 type ListEntry struct {
 	entry   Entry
 	id      Id
@@ -25,6 +15,7 @@ type ListEntry struct {
 }
 
 func NewListEntry(e Entry, i Id, d bool) *ListEntry {
+	// TODO: sync pool can be used here. Custom slab allocator can be used.
 	return &ListEntry{
 		entry:   e,
 		id:      i,
@@ -41,48 +32,74 @@ func (le *ListEntry) Print() {
 	fmt.Printf("id: %v, entry: %v, deleted = %v\n", le.id, le.entry, le.deleted)
 }
 
-type FlushCallback func(le *ListEntry) error
+type FlushCallback func() error
+type FlushEntryCallback func(le *ListEntry) error
+
+type FlushMap map[Id]Entry
+
+type BackStore struct {
+	spath  string
+	ll     *LinkedList
+	addMap FlushMap
+	delMap FlushMap // TODO: use better data type for delMap
+}
 
 func NewBackStore(spath string) *BackStore {
 	bs := &BackStore{
-		spath:    spath,
-		storeMap: make(StoreMap),
+		spath:  spath,
+		ll:     NewLinkedList(),
+		addMap: make(FlushMap),
+		delMap: make(FlushMap),
 	}
 	return bs
 }
 
 func (bs *BackStore) AddId(id Id, e Entry) error {
-	sme := &StoreMapEntry{
-		entry:   e,
-		deleted: false,
-	}
-	bs.storeMap[id] = sme
-	return nil
+	le := NewListEntry(e, id, false)
+	err := bs.ll.Append(le)
+	return err
 }
 
 func (bs *BackStore) DeleteId(id Id) error {
-	ent, ok := bs.storeMap[id]
-	if !ok {
-		return errors.New("Not Found")
-	}
-	ent.deleted = true
-	return nil
+	le := NewListEntry(nil, id, true)
+	err := bs.ll.Append(le)
+	return err
 }
 
 func (bs *BackStore) GetEntry(id Id) (Entry, error) {
-	ent, ok := bs.storeMap[id]
-	if !ok {
-		return nil, errors.New("Not Found")
-	}
-	return ent.entry, nil
+	// TODO: Implement read logic
+	// Need to implement read caching
+	return nil, nil
 }
 
 func (bs *BackStore) Flush() error {
-	return nil
+	err := bs.ll.Flush(bs.flushAll, bs.flushEntry)
+	return err
 }
 
 func (bs *BackStore) getFilePathFromId(id Id) string {
 	f1 := fmt.Sprintf("%x", id%256)
 	f2 := fmt.Sprintf("%x", (id>>8)%256)
 	return filepath.Join(bs.spath, f1, f2)
+}
+
+func (bs *BackStore) flushEntry(le *ListEntry) error {
+	// TODO: using golang map might not be perf efficient
+	// Need to reconsider if need arises.
+	if !le.deleted {
+		bs.addMap[le.id] = le.entry
+	} else {
+		if _, ok := bs.addMap[le.id]; ok {
+			delete(bs.addMap, le.id)
+		} else {
+			bs.delMap[le.id] = nil
+		}
+	}
+	return nil
+}
+
+func (bs *BackStore) flushAll() error {
+	// TODO: Implement actual flush logic.
+	fmt.Println("bs.addMap =", bs.addMap)
+	return nil
 }

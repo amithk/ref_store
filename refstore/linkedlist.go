@@ -46,7 +46,8 @@ func (l *LinkedList) Append(le *ListEntry) error {
 	return nil
 }
 
-func (l *LinkedList) Flush(cb FlushCallback) error {
+func (l *LinkedList) Flush(flush FlushCallback, flushentry FlushEntryCallback) error {
+	var err error
 
 	t := atomic.LoadPointer(&l.tail)
 	if t == nil {
@@ -59,7 +60,7 @@ func (l *LinkedList) Flush(cb FlushCallback) error {
 	}
 
 	for {
-		err := cb((*ListEntry)(h))
+		err = flushentry((*ListEntry)(h))
 		if err != nil {
 			return err
 		}
@@ -68,12 +69,17 @@ func (l *LinkedList) Flush(cb FlushCallback) error {
 		h = leh.next
 
 		if h == t {
-			err := cb((*ListEntry)(h))
+			err = flushentry((*ListEntry)(h))
 			if err != nil {
 				return err
 			}
 			break
 		}
+	}
+
+	err = flush()
+	if err != nil {
+		return err
 	}
 
 	let := (*ListEntry)(t)

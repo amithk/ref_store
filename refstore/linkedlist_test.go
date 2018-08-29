@@ -17,13 +17,19 @@ func TestLinkedListBasic(t *testing.T) {
 		}
 	}
 
-	err = ll.Flush(testFlushCallback)
+	err = ll.Flush(testFlush, testFlushEntry)
 	if err != nil {
 		fmt.Println("Error", err, "In Flush")
 	}
 }
 
-func testFlushCallback(le *ListEntry) error {
+func testFlushEntry(le *ListEntry) error {
+	fmt.Println("testFlushEntryCalled")
 	le.Print()
+	return nil
+}
+
+func testFlush() error {
+	fmt.Println("testFlush called")
 	return nil
 }
