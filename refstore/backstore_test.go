@@ -11,6 +11,7 @@ func TestBackStoreBasic(t *testing.T) {
 	bs.AddId(12, []byte("ccc"))
 	bs.AddId(13, []byte("ddd"))
 	bs.DeleteId(11)
+	bs.DeleteId(22)
 
 	err := bs.Flush()
 	if err != nil {

@@ -101,5 +101,6 @@ func (bs *BackStore) flushEntry(le *ListEntry) error {
 func (bs *BackStore) flushAll() error {
 	// TODO: Implement actual flush logic.
 	fmt.Println("bs.addMap =", bs.addMap)
+	fmt.Println("bs.delMap =", bs.delMap)
 	return nil
 }
