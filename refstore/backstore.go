@@ -2,6 +2,7 @@ package refstore
 
 import "fmt"
 import "path/filepath"
+import "sync"
 import "unsafe"
 
 // TODO: Restructure list entry. Let linked list store the next pointer.
@@ -41,7 +42,8 @@ type BackStore struct {
 	spath  string
 	ll     *LinkedList
 	addMap FlushMap
-	delMap FlushMap // TODO: use better data type for delMap
+	delMap FlushMap    // TODO: use better data type for delMap
+	fLock  *sync.Mutex // Allow only one flush operation at a time
 }
 
 func NewBackStore(spath string) *BackStore {
@@ -50,6 +52,7 @@ func NewBackStore(spath string) *BackStore {
 		ll:     NewLinkedList(),
 		addMap: make(FlushMap),
 		delMap: make(FlushMap),
+		fLock:  new(sync.Mutex),
 	}
 	return bs
 }
@@ -73,6 +76,9 @@ func (bs *BackStore) GetEntry(id Id) (Entry, error) {
 }
 
 func (bs *BackStore) Flush() error {
+	bs.fLock.Lock()
+	defer bs.fLock.Unlock()
+
 	err := bs.ll.Flush(bs.flushAll, bs.flushEntry)
 	return err
 }
